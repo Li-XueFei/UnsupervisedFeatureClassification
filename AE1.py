@@ -68,10 +68,10 @@ ae.compile(optimizer='rmsprop', loss='binary_crossentropy')
 
 #EarlyStopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=5, verbose=0, mode='auto')
     
-ae.fit(train_Img[:5000], train_Img[:5000], 
+ae.fit(train_Img[:10000], train_Img[:10000], 
         shuffle=True,
         verbose=1,
-        batch_size = 100,
+        batch_size = 200,
         epochs = 50,
         #validation_data = (train_Img[5000:5100], train_Img[5000:5100]),
         #callbacks=[EarlyStopping]

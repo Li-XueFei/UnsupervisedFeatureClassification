@@ -67,12 +67,22 @@ decode = Conv2D(1, (3, 3), activation='relu', padding='same',kernel_initializer=
 
 #EarlyStopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=10, verbose=0, mode='auto')
 
-cnn = Model(inputs=input_img, outputs=decode)
-cnn.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['accuracy'])
+ae = Model(inputs=input_img, outputs=decode)
+ae.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['accuracy'])
 
-cnn.fit(train_Img[:10000], train_Img[:10000],
+ae.fit(trainX[:10000], trainX[:10000],
         shuffle=True,
         epochs=25,
         batch_size=100,
         #validation_data=(train_Img[10000:10100],range(10000,10100),callbacks=[EarlyStopping]
        )
+
+inputs = ae.input
+outputs = [layers.output for layer in ae.layers]
+
+layer_outs = functor([trainX[:100], 1.])
+
+for l in range(len(layer_outs)):
+	fname = "layers/layer" + str(l) + ".npy"
+	np.save(fname, layer_outs[l])
+

@@ -108,8 +108,8 @@ def vae_loss(x, decoded):
 vae = Model(inputs=input_img, outputs=decoded)
 vae.compile(optimizer='rmsprop', loss=vae_loss)
 
-vae.fit(train_Img[:5000] train_Img[:5000]),
+vae.fit((train_Img[:10000], train_Img[:10000]),
         shuffle=True,
         epochs=50,
         batch_size=batch_size,
-        validation_data=(train_Img[5000:5100],train_Img[5000:5100]),callbacks=[EarlyStopping])
+        validation_data=(train_Img[10000:11000],train_Img[10000:11000]),callbacks=[EarlyStopping])

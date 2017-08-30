@@ -43,19 +43,29 @@ conv3_2 = Conv2D(128, (3, 3), activation='relu', padding='same',kernel_initializ
 conv3_3 = Conv2D(128, (3, 3), activation='relu', padding='same',kernel_initializer='normal')(conv3_2)
 maxpool_3 = MaxPooling2D((2, 2))(conv3_3)
 
-fc_1 = Flatten()(maxpool_2)
+fc_1 = Flatten()(maxpool_3)
 fc_2 = Dense(2048, activation='relu')(fc_1)
 fc_3 = Dense(2048, activation='relu')(fc_2)
 predictions = Dense(1, activation='sigmoid')(fc_3)
 
-EarlyStopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=10, verbose=0, mode='auto')
+EarlyStopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=5, verbose=0, mode='auto')
 
 cnn = Model(inputs=input_img, outputs=predictions)
 cnn.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['accuracy'])
 
-cnn.fit(train_Img[:19000], labels[:19000],
+cnn.fit(trainX[:19000], labels[:19000],
         shuffle=True,
         epochs=100,
         batch_size=100,
-        validation_data=(train_Img[19000:20000], labels[19000:20000]), callbacks=[EarlyStopping]
-       )
+        validation_data=(trainX[19000:20000], labels[19000:20000]), callbacks=[EarlyStopping]
+        )
+
+inputs = cnn.input
+outputs = [layer.output for layer in cnn.layers]
+functor = K.function([inputs] + [K.learning_phase()], outputs)
+
+layer_outs = functor([trainX[19000:19016], 1.])
+
+layer5 = layer_outs[5]
+#np.save("result/layer5.npy",layer5[:5,:,:,:3])
+print(layer5[:3,:,:,:3])

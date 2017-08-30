@@ -12,7 +12,7 @@ Imgs, labels = load_data.getData()
 trainX = load_data.preprocess(Imgs)
 
 learning_rate = 0.1
-training_epochs = 20
+training_epochs = 100
 batch_size = 100
 display_step = 1
 examples_to_show = 10
@@ -121,7 +121,7 @@ init = tf.global_variables_initializer()
 # Launch the graph
 with tf.Session() as sess:
     sess.run(init)
-    total_batch = 25
+    total_batch = 100
     # Training cycle
     for epoch in range(training_epochs):
         # Loop over all batches
@@ -139,6 +139,6 @@ with tf.Session() as sess:
 
     # Applying encode and decode over test set
     encode_decode = sess.run(
-        y_pred, feed_dict={X:trainX[2500:2600]})
+        y_pred, feed_dict={X:trainX[1100:2600]})
     
 np.save("results.npy", encode_decode)

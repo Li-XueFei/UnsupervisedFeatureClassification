@@ -34,7 +34,7 @@ intermediate_dim_1 = 600
 #intermediate_dim_2 = 300
 original_dim = 64*64
 
-input_img = Input(shape=(64,64,1))
+input_img = Input(shape=(64,64,3))
 
 conv_1 = Conv2D(80, (3, 3), padding='same',kernel_initializer='normal')(input_img)
 conv_1 = PReLU()(conv_1)
@@ -104,7 +104,7 @@ conv_10 = Conv2D(80, (3, 3), padding='same',kernel_initializer='normal')(upsamp_
 conv_10 = PReLU()(conv_10)
 upsamp_10 = UpSampling2D((2, 2))(conv_10)
 
-decoded = Conv2D(1, (3, 3), activation='sigmoid', padding='same')(upsamp_10)
+decoded = Conv2D(3, (3, 3), activation='sigmoid', padding='same')(upsamp_10)
 
 EarlyStopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=10, verbose=0, mode='auto')
 
@@ -117,3 +117,21 @@ def vae_loss(x, decoded):
 
 vae = Model(inputs=input_img, outputs=decoded)
 vae.compile(optimizer='rmsprop', loss=vae_loss)
+
+vae.fit(trainX[:19000], trainX[:19000], 
+		shuffle=True, 
+		epochs=5, 
+		batch_size=batch_size, 
+		validation_data=(trainX[19000:],trainX[19000:]),
+		callbacks=[EarlyStopping]
+		)
+
+
+inp = vae.input    # input placeholder 
+outputs = [layer.output for layer in vae.layers]     # all layer outputs 
+functor = K.function([inp] + [K.learning_phase()], outputs ) # evaluation function  
+
+# Testing  
+layer_outs = functor([trainX[10000:10100], 1.])
+	
+np.save("tmp.npy", layer_outs[37][:9,:,:,:])
