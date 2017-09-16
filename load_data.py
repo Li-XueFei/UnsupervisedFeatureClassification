@@ -33,7 +33,7 @@ def getData():
 	Class = np.asarray(Class)
 	Class[Class=='STAR'] = 0
 	Class[Class=='GALAXY'] = 1
-	Class[Class=='QSO'] = 0
+	Class[Class=='QSO'] = 2
 	return Img, Class
 
 def preprocess(data):
@@ -52,7 +52,7 @@ def preprocess(data):
 	
 Image, label = getData()
 train_img = preprocess(Image)
-print(train_img.shape)
+np.save('class.npy', label)
 
 
 
