@@ -119,11 +119,11 @@ class pointMap:
             return 1
         else:
             return 0
-    def getMusk(self, mark):
-        musk = np.zeros_like(self.value)
+    def getMask(self, mark):
+        mask = np.zeros_like(self.value)
         for p in mark:
-            musk[p[0], p[1]] = 1
-            return musk
+            mask[p[0], p[1]] = 1
+            return mask
     
     def getCluster(self):
         mark = []
@@ -161,7 +161,7 @@ from sklearn.cluster import MiniBatchKMeans
 from scipy.cluster.vq import whiten
 
 kmeans = MiniBatchKMeans(n_clusters=2, compute_labels=False)
-new_Img = np.zeros((50000, 64, 64, 1))
+new_Img = []
 add = 0
 for img_idx in range(50000):
     if img_idx == 49999:
@@ -179,18 +179,26 @@ for img_idx in range(50000):
     
     pm = pointMap(pred)
     mark = pm.getCluster()
-    musk = pm.getMusk(mark)
+    #mask = pm.getMask(mark)
     
-    new_Img[img_idx] = np.random.normal(train_Img1[img_idx],0.05, size=(64, 64, 1))
-    new_Img[img_idx, musk==1] = train_Img1[img_idx, musk==1]
-    
-    ae2 = Model(inputs=input_img, outputs=decoded)
-    ae2.compile(optimizer='adam', loss=ae_loss)
-    ae2.fit((new_img[:45000], new_Img[:45000]),
-            shuffle=True,
-            epochs=50,
-            batch_size=batch_size,
-            validation_data=(new_Img[45000:],new_Img[45000:]),callbacks=[EarlyStopping])
+    new_img = np.random.normal(train_Img[img_idx],0.05, size=(64, 64, 1)) 
+    #new_Img[img_idx][mask==1] = train_Img[img_idx][mask==1]
+    for p in mark:
+		new_img[p[0], p[1], :] = train_Img[img_idx, p[0], p[1], :]
+
+	new_Img.append(new_img)
+
+
+
+new_Img = np.array(new_Img)
+
+ae2 = Model(inputs=input_img, outputs=decoded)
+ae2.compile(optimizer='adam', loss=ae_loss)
+ae2.fit(new_Img[:45000], new_Img[:45000],
+		shufle=True,
+		epochs=22,
+		batch_size=batch_size,
+		validation_data=(new_Img[45000:],new_Img[45000:]),callbacks=[EarlyStopping])
     
 inp = ae2.input    # input placeholder
 outputs = [layer.output for layer in ae2.layers]       # all layer outputs
@@ -212,7 +220,8 @@ def sampling(args):
 
 input_img = Input(shape=(30,))
 # add a Dense layer with a L1 activity regularizer
-h = Dense(intermediate_dim, activation='relu', activity_regularizer=regularizers.activity_l1(10e-5))(input_im253 z_mean = Dense(latent_dim)(h)
+h = Dense(intermediate_dim, activation='relu', activity_regularizer=regularizers.activity_l1(10e-5))(input_img)
+z_mean = Dense(latent_dim)(h)
 z_log_sigma = Dense(latent_dim)(h)
 
 z = Lambda(sampling, output_shape=(latent_dim,))([z_mean, z_log_sigma])

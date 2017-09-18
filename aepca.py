@@ -16,7 +16,7 @@ import load_data
 Imgs, labels = load_data.getData()
 train_Img = load_data.preprocess(Imgs)
 
-from keras.layers import Input, Dense, Conv2D, MaxPooling2D, UpSampling2D, Flatten, Reshape, Lambda, concatenate, Activation, BatchNormalization
+from keras.layers import Input, Dense, Conv2D, MaxPooling2D, UpSampling2D, Flatten, Reshape, Lambda, concatenate, Activation, BatchNormalization, Dropout
 from keras.layers.advanced_activations import LeakyReLU, PReLU
 from keras.optimizers import SGD, Adadelta, Adagrad,Adam, rmsprop
 from keras import objectives
@@ -55,16 +55,18 @@ encoded = Dense(50)(f)
 #maxpool_4 = MaxPooling2D((2, 2),  padding='same')(conv_4)
 
 h_1 = Dense(80*8*8,activation='relu')(encoded)
-h_2 = Reshape((8,8,80))(h_1)
+h1 = Dropout(0.2)(h_1)
+h_2 = Reshape((8,8,80))(h1)
+h2 = Dropout(0.1)(h_2)
 
-upsample_6 = UpSampling2D((2, 2))(h_2)
+upsample_6 = UpSampling2D((2, 2))(h2)
 conv_6 = Conv2D(80, (3, 3), activation='relu', padding='same',kernel_initializer='normal')(upsample_6)
 
-#concat_7 = concatenate([upsample_6,conv_3])
+concat_7 = concatenate([upsample_6,conv_3])
 upsample_7 = UpSampling2D((2, 2))(conv_6)
 conv_7 = Conv2D(80, (3, 3), activation='relu', padding='same',kernel_initializer='normal')(upsample_7)
 
-#concat_8 = concatenate([upsample_7,conv_2])
+concat_8 = concatenate([upsample_7,conv_2])
 upsample_8 = UpSampling2D((2, 2))(conv_7)
 conv_8 = Conv2D(80,  (3, 3), activation='relu',padding='same',kernel_initializer='normal')(upsample_8)
 
@@ -83,13 +85,13 @@ def vae_loss(x, decoded):
     return xent_loss + 10*kl_loss  
 
 ae1 = Model(inputs=input_img1, outputs=decoded)
-ae1.compile(optimizer='rmsprop', loss=ae_loss)
+ae1.compile(optimizer='adam', loss=ae_loss)
 
-ae1.fit(train_Img1[:13000], train_Img1[:13000],
+ae1.fit(train_Img[:45000], train_Img[:45000],
         shuffle=True,
         epochs=50,
         batch_size=batch_size,
-        validation_data=(train_Img1[13000:14000],train_Img1[13000:14000]),callbacks=[EarlyStopping])
+        validation_data=(train_Img[45000:50000],train_Img[45000:50000]),callbacks=[EarlyStopping])
 
 import math
 
@@ -162,13 +164,13 @@ class pointMap:
         return musk  
     
     def calLBP(self, mark, pic):
-        htg = np.zeros(58)
+        htg = np.zeros(59)
         for p in mark:
             lbp = []
             step = [[-1,-1], [-1,0], [-1,1], [0,1], [1,1], [1,0], [1,-1], [0,-1]]
             for i in range(8):
                 try:
-                    t = (pic[p[0]+step[i][0], p[1]-step[i][1]]>pic[p[0], p[1]])
+                    t = (pic[p[0]+step[i][0], p[1]+step[i][1]]>pic[p[0], p[1]])
                 except:
                     lbp.append(False)
                 else:
@@ -184,15 +186,15 @@ class pointMap:
             else:
                 LBP = [str(int(l)) for l in lbp]
                 LBP = ''.join(LBP)
-                print(LBP)
 
                 if LBP in pointMap.attr:
                     htg[pointMap.attr.index(LBP)+1] += 1
                 else:
-                    pointMap.attr.append(LBP)
-                    htg[len(pointMap.attr)] += 1
+					
+					pointMap.attr.append(LBP)
+					htg[len(pointMap.attr)] += 1
             
-
+		#print(len(pointMap.attr))
         m = math.sqrt(sum(htg*htg))
         htg = htg/m
         return htg
@@ -203,10 +205,10 @@ outputs = [layer.output for layer in model.layers]          # all layer outputs
 functor = K.function([inp] + [K.learning_phase()], outputs ) # evaluation function
 
 decode1 = np.zeros((50000, 64, 64, 1))
-attr = np.zeros((50000, 30))
+#attr = np.zeros((50000, 30))
 for i in range(500):
-    layer_outs = functor([train_Img1[i*100:(i+1)*100], 1.])
-    decode1[i*100:(i+1)*100]=layer_outs[20]
+    layer_outs = functor([train_Img[i*100:(i+1)*100], 1.])
+    decode1[i*100:(i+1)*100]=layer_outs[22]
     #attr[i*100:(i+1)*100, :] = layer_outs[10]
     
 from sklearn.cluster import MiniBatchKMeans
@@ -220,10 +222,10 @@ h2 = decode1.reshape((50000,64*64))
 #h3 = decode2[5000:5100, :,:,:].reshape((100, 64*64))
 #hypercol = np.dstack((h1, h2))
 
-new_Img = train_Img1
+new_Img = train_Img
 M = 0
 m = 10
-lbp = np.zeros((50000, 58))
+lbp = np.zeros((50000, 59))
 add = 0
 for img_idx in range(50000):
     if img_idx+add==49999:
@@ -245,15 +247,10 @@ for img_idx in range(50000):
 
     pm = pointMap(pred)
     mark = pm.getCluster()
-    lbp[img_idx, :] = pm.calLBP(mark, train_Img1[img_idx+add])
-    musk = pm.getMusk(mark) 
-    
-    if musk.sum() > M:
-        M = musk.sum()
-    elif musk.sum() < m:
-        m = musk.sum()
-        
-    new_Img[img_idx, musk==0] = np.mean(train_Img1[img_idx+add, musk==0])
+    lbp[img_idx, :] = pm.calLBP(mark, train_Img[img_idx+add])
+    #musk = pm.getMusk(mark) 
+            
+    #new_Img[img_idx, musk==0] = np.mean(train_Img1[img_idx+add, musk==0])
     
     
 from sklearn.decomposition import SparsePCA
@@ -262,4 +259,5 @@ pca = SparsePCA(n_components=2)
 pca.fit(lbp)
 attr = pca.fit_transform(lbp)
 
-np.save('result.npy', attr)
+np.save('pcaresult2.npy', attr)
+np.save('pcalabels1.npy', labels)

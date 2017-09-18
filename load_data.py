@@ -17,13 +17,13 @@ def norm(x):
 	return result
 
 def getData():
-	path = os.listdir('../images/')
+	path = os.listdir('../SDSS_2000/')
 	
 	Img = []
 	Class = []
-	for i in range(len(path)):
+	for i in range(10000):
 		path_now = path[0]
-		a = np.load('../images/'+str(path_now))
+		a = np.load('../SDSS_2000/'+str(path_now))
 		for j in range(a.shape[0]):
 			Img.append(a[j]['image'])
 			Class.append(a[j]['class'])
@@ -44,15 +44,19 @@ def preprocess(data):
 		img[img==1000] = img_mean
 		data[:, c, :, :] = norm(img)
 
-	train_img = np.zeros((data.shape[0], 64, 64, 3))
+	train_img = np.zeros((data.shape[0], 64, 64, 1))
 	for i in range(data.shape[0]):
-		train_img[i] = np.stack((data[i][1], data[i][2], data[i][3]), axis=-1)
-		#train_img[i] = data[i][3].reshape((64, 64, 1))
+		#train_img[i] = np.stack((data[i][1], data[i][2], data[i][3]), axis=-1)
+		train_img[i] = data[i][3].reshape((64, 64, 1))
+	train_img = train_img - train_img.min()
+
 	return train_img
 	
-Image, label = getData()
-train_img = preprocess(Image)
-np.save('class.npy', label)
+#Image, label = getData()
+#train_img = preprocess(Image)
+#print(label[100:110])
+#print(label.shape)
+#np.save('class.npy', label)
 
 
 

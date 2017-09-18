@@ -22,7 +22,7 @@ from keras import objectives
 
 Imgs, labels = load_data.getData()
 
-from keras.layers import Input, Dense, Conv2D, MaxPooling2D, UpSampling2D, Flatten, Reshape, Lambda, concatenate
+from keras.layers import Input, Dense, Conv2D, MaxPooling2D, UpSampling2D, Dropout, BatchNormalization, Flatten, Reshape, Lambda, concatenate
 from keras.optimizers import SGD, Adadelta, Adagrad,Adam, rmsprop
 from keras import objectives
 from keras.callbacks import TensorBoard
@@ -36,24 +36,31 @@ latent_dim = 30
 nb_epoch = 50
 epsilon_std =5.0
 intermediate_dim_1 = 600
+original_dim = 64*64
 
 input_img = Input(shape=(64,64,1))
 
 conv_1 = Conv2D(80, (3, 3), activation='relu', padding='same',kernel_initializer='normal')(input_img)
+conv_1 = BatchNormalization()(conv_1)
 maxpool_1 = Conv2D(80, (3, 3), strides=(2, 2), activation='tanh', padding='same',kernel_initializer='normal')(conv_1)
 
 conv_2 = Conv2D(80, (3, 3), activation='relu', padding='same',kernel_initializer='normal')(maxpool_1)
+conv_2 = BatchNormalization()(conv_2)
 maxpool_2 = Conv2D(80, (3, 3), strides=(2, 2), activation='tanh', padding='same',kernel_initializer='normal')(conv_2)
 
 conv_3 = Conv2D(80, (3, 3), activation='relu', padding='same',kernel_initializer='normal')(maxpool_2)
+conv_3 = BatchNormalization()(conv_3)
 maxpool_3 = Conv2D(80, (3, 3), strides=(2, 2), activation='tanh', padding='same',kernel_initializer='normal')(conv_3)
 
-encoded = Conv2D(1, (3, 3), activation='relu', padding='same',kernel_initializer='normal')(maxpool_3)
+f = Flatten()(maxpool_3)
+encoded = Dense(50)(f)
 
-conv_5 = Conv2D(80, (3, 3), activation='relu', padding='same',kernel_initializer='normal')(concat_5)
-upsample_5 = UpSampling2D((2, 2))(conv_5)
+h_1 = Dense(80*8*8,activation='relu')(encoded)
+h_1 = Dropout(0.2)(h_1)
+h_2 = Reshape((8,8,80))(h_1)
+h_2 = Dropout(0.1)(h_2)
 
-conv_6 = Conv2D(80, (3, 3), activation='relu', padding='same',kernel_initializer='normal')(encoded)
+conv_6 = Conv2D(80, (3, 3), activation='relu', padding='same',kernel_initializer='normal')(h_2)
 upsample_6 = UpSampling2D((2, 2))(conv_6)
 
 concat_7 = concatenate([upsample_6,conv_3])
@@ -66,29 +73,32 @@ upsample_8 = UpSampling2D((2, 2))(conv_8)
 
 decoded = Conv2D(1, (3, 3), activation='sigmoid', padding='same')(upsample_8)
 
+def ae_loss(x, decoded):
+	xent_loss = original_dim * objectives.mean_squared_error(x,decoded)
+	return xent_loss
+
 EarlyStopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=6, verbose=0, mode='auto') 
 
 ae1 = Model(inputs=input_img, outputs=decoded)
-ae1.compile(optimizer='rmsprop', loss='binary_crossentropy')
+ae1.compile(optimizer='adam', loss=ae_loss)
 
-ae1.fit((train_Img[:10000], train_Img[:10000]),
+ae1.fit(train_Img[:45000], train_Img[:45000],
         shuffle=True,
         epochs=50,
         batch_size=batch_size,
-        )
+        validation_data=(train_Img[45000:50000],train_Img[45000:50000]),
+		callbacks=[EarlyStopping])
 
-inp = vae1.input    # input placeholder
-outputs = [layer.output for layer in vae1.layers]       # all layer outputs
+inp = ae1.input    # input placeholder
+outputs = [layer.output for layer in ae1.layers]       # all layer outputs
 functor = K.function([inp] + [K.learning_phase()], outputs ) # evaluation function
-decode1 = np.zeros((10000, 64, 64, 1))
+decode1 = np.zeros((50000, 64, 64, 1))
 
-for i in range(100):
+for i in range(500):
     layer_outs = functor([train_Img[i*100:(i+1)*100], 1.])
-    decode1[i*100:(i+1)*100]=layer_outs[15]
+    decode1[i*100:(i+1)*100]=layer_outs[24]
     
-h1 = train_Img[:100000].reshape((10000, 64*64))
-h2 = decode1.reshape((10000, 64*64))
-hpcol = np.dstack(h1, h2))
+h2 = decode1.reshape((50000, 64*64))
 
 class point:
     
@@ -116,6 +126,12 @@ class pointMap:
         else:
             return 0
     
+	def getMusk(self, mark):
+		musk = np.zeros_like(self.value)
+		for p in mark:
+			musk[p[0], p[1]] = 1
+		return musk
+
     def getCluster(self):
         mark = []
         pend = []
@@ -170,72 +186,54 @@ class pointMap:
                     mark.append((x+1,y+1))
                     pend.append(p2)
         return mark
-    
-from skimage.transform.pyramids import pyramid_expand
 from sklearn.cluster import MiniBatchKMeans
 from scipy.cluster.vq import whiten
 
 kmeans = MiniBatchKMeans(n_clusters=2, compute_labels=False)
 
-for img_idx in range(10000):
-    sample = whiten(hpcol[img_idx,:,:])
-    kmeans.fit(sample)
-    pred = kmeans.predict(sample)
-    pred = pred.reshape((64,64))
-    c = pred[31,31]
-    decode[img_idx][pred==1-c]=0
-    
-h1 = train_Img[:10000].reshape((10000,64*64))
-h2 = decode1[:10000].reshape((10000,64*64))
-#h3 = decode2[5000:5100, :,:,:].reshape((100, 64*64))
-hypercol = np.dstack((h1, h2))
+new_Img = np.zeros((50000, 64, 64, 1))
+add = 0
 
-new_Img = np.zeros((10000, 64, 64, 1))
-clus = 10
-aggregate_hpcol = whiten(allimg)
-kmeans.fit(aggregate_hpcol)
-for img_idx in range(10000):
-    sample = hypercol[img_idx].reshape((4096,2))
-        
-    aggregate_hpcol = whiten(sample)
-    kmeans.fit(sample)
-        
-    pred = kmeans.predict(sample)
-    pred = pred.reshape((64,64))
-        
-    if pred.sum()>64*32:
-        if pred[32, 32] == 0:
-            pred = 1-pred
-        else:
-            add += 1
-            break
+for img_idx in range(50000):
+	if img_idx == 49999:
+		break
+	sample = h2[img_idx+add].reshape((4096, 1))
+	sample = whiten(sample)
+	kmeans.fit(sample)
 
-    pm = pointMap(pred)
-    mark = pm.getCluster()
+	pred = kmeans.predict(sample)
+	pred = pred.reshape((64,64))
 
-    pic = np.zeros((64, 64))
-    for p in mark:
-        pic[p[0], p[1]] = train_Img[img_idx, p[0], p[1]]
+	if pred.sum()>64*32:
+		if pred[32, 32]==0:
+			pred = 1-pred
+		else:
+			add+=1
+	
+	pm = pointMap(pred)
+	mark = pm.getCluster()
+	musk = pm.getMusk(mark)
 
-        new_Img[img_idx,:,:] = pic
-    
-    
+	new_Img[img_idx] = np.random.normal(train_Img1[img_idx],0.05, size=(64, 64, 1))
+	new_Img[img_idx, musk==1] = train_Img1[img_idx, musk==1]
 
 ae2 = Model(inputs=input_img, outputs=decoded)
-ae2.compile(optimizer='rmsprop', loss='binary_crossentropy')
+ae2.compile(optimizer='adam', loss=ae_loss)
 
-ae2.fit((new_img[:9000], new_Img[:9000]),
+ae2.fit((new_img[:45000], new_Img[:45000]),
         shuffle=True,
         epochs=50,
         batch_size=batch_size,
-        validation_data=(new_Img[9000:],new_Img[9000:]),callbacks=[EarlyStopping])
+        validation_data=(new_Img[45000:],new_Img[45000:]),callbacks=[EarlyStopping])
 
 inp = ae2.input    # input placeholder
 outputs = [layer.output for layer in ae2.layers]       # all layer outputs
 functor = K.function([inp] + [K.learning_phase()], outputs ) # evaluation function
 
-layer_outs = functor([train_Img[i*100:(i+1)*100], 1.])
-attr1=layer_outs[7].reshape((64))
+attr = np.zeros((50000, 30))
+for i in range(500):
+	layer_outs = functor([train_Img[i*100:(i+1)*100], 1.])
+	attr1[i*100:(i+1)*100]=layer_outs[10]
 
 
 from keras import regularizers
@@ -249,7 +247,7 @@ def sampling(args):
                               mean=0., std=epsilon_std)
     return z_mean + K.exp(z_log_sigma) * epsilon
 
-input_img = Input(shape=(64,))
+input_img = Input(shape=(30,))
 # add a Dense layer with a L1 activity regularizer
 h = Dense(intermediate_dim, activation='relu', activity_regularizer=regularizers.activity_l1(10e-5))(input_img)
 z_mean = Dense(latent_dim)(h)
@@ -271,10 +269,23 @@ def vae_loss(x, x_decoded_mean):
 
 vae.compile(optimizer='rmsprop', loss=vae_loss)
 
-vae.fit(attr1[:9000], attr1[:9000],
+vae.fit(attr[:40000], attr[:40000],
         shuffle=True,
         nb_epoch=nb_epoch,
         batch_size=batch_size,
-        validation_data=(attr1[9000:], attr1[9000:]))
+        validation_data=(attr[40000:50000], attr[40000:50000]))
 
-np.save('attr.npy', attr[:100])
+
+model = vae
+imp = model.input
+outputs = [layer.output for layer in model.layers]
+functor = K.function([inp] + [K.learning_phase()], outputs)
+
+attr2 = np.zeros((50000, 2))
+for i in ranger(500):
+	layerouts = functor([attr[i*100:(i+1)*100], 1.])
+	attr2[i*100:(i+1)*100] = layer_outs[2]
+
+np.save('attr.npy', attr2)
+np.save('labels.npy', labels)
+	
