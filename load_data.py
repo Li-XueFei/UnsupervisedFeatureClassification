@@ -12,18 +12,18 @@ def scale(x):
 	return result
 
 def norm(x):
-	result = x - x.mean()
-	result = result / x.min()
-	return result
+	result = x / x.max()
+	result = result - result.mean()
+	return -result
 
 def getData():
-	path = os.listdir('../SDSS_2000/')
+	path = os.listdir('../SDSS_10W/')
 	
 	Img = []
 	Class = []
 	for i in range(10000):
 		path_now = path[0]
-		a = np.load('../SDSS_2000/'+str(path_now))
+		a = np.load('../SDSS_10W/'+str(path_now))
 		for j in range(a.shape[0]):
 			Img.append(a[j]['image'])
 			Class.append(a[j]['class'])
@@ -33,7 +33,7 @@ def getData():
 	Class = np.asarray(Class)
 	Class[Class=='STAR'] = 0
 	Class[Class=='GALAXY'] = 1
-	Class[Class=='QSO'] = 2
+	Class[Class=='QSO'] = 0
 	return Img, Class
 
 def preprocess(data):
@@ -48,14 +48,14 @@ def preprocess(data):
 	for i in range(data.shape[0]):
 		#train_img[i] = np.stack((data[i][1], data[i][2], data[i][3]), axis=-1)
 		train_img[i] = data[i][3].reshape((64, 64, 1))
-	train_img = train_img - train_img.min()
+	#train_img = train_img - train_img.min()
 
 	return train_img
 	
 #Image, label = getData()
 #train_img = preprocess(Image)
-#print(label[100:110])
-#print(label.shape)
+#print(label[100:210])
+#print(train_img.max(), train_img.min())
 #np.save('class.npy', label)
 
 

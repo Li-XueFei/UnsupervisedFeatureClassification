@@ -15,7 +15,7 @@ import load_data
 Imgs, labels = load_data.getData()
 train_Img = load_data.preprocess(Imgs)
 
-from keras.layers import Input, Dense, Conv2D, MaxPooling2D, UpSampling2D, Flatten, Reshape, Lambda, concatenate, Activation, BatchNormalization
+from keras.layers import Input, Dense, Conv2D, MaxPooling2D, UpSampling2D, Flatten, Reshape, Dropout, Lambda, concatenate, Activation, BatchNormalization
 from keras.layers.advanced_activations import LeakyReLU, PReLU
 from keras.optimizers import SGD, Adadelta, Adagrad,Adam, rmsprop
 from keras import objectives
@@ -39,36 +39,38 @@ conv_1 =PReLU()(conv_1)
 conv_1 = BatchNormalization()(conv_1)
 maxpool_1 = MaxPooling2D((2, 2),padding='same')(conv_1)
 
-conv_2 = Conv2D(40, (3, 3), padding='same',kernel_initializer='normal')(maxpool_1)
+conv_2 = Conv2D(80, (3, 3), padding='same',kernel_initializer='normal')(maxpool_1)
 conv_2 = PReLU()(conv_2)
 conv_2 = BatchNormalization()(conv_2)
 maxpool_2 = MaxPooling2D((2, 2),  padding='same')(conv_2)
 
-conv_3 = Conv2D(20, (3, 3),padding='same',kernel_initializer='normal')(maxpool_2)
+conv_3 = Conv2D(80, (3, 3),padding='same',kernel_initializer='normal')(maxpool_2)
 conv_3 = PReLU()(conv_3)
 conv_3 = BatchNormalization()(conv_3)
 maxpool_3 = MaxPooling2D((2, 2),  padding='same')(conv_3)
 
 f = Flatten()(maxpool_3)
-encoded = Dense(latent_dim)(f)
+dpout_1 = Dropout(0.3)(f)
+encoded = Dense(latent_dim)(dpout_1)
 #maxpool_4 = MaxPooling2D((2, 2),  padding='same')(conv_4)
 
 h_1 = Dense(80*8*8,activation='relu')(encoded)
-h_2 = Reshape((8,8,80))(h_1)
+#h_2 = Dropout(0.3)(h_1)
+h_3 = Reshape((8,8,80))(h_1)
 
-upsample_6 = UpSampling2D((2, 2))(h_2)
+upsample_6 = UpSampling2D((2, 2))(h_3)
 conv_6 = Conv2D(80, (3, 3), activation='relu', padding='same',kernel_initializer='normal')(upsample_6)
 
-concat_7 = concatenate([upsample_6,conv_3])
+#concat_7 = concatenate([upsample_6,conv_3])
 upsample_7 = UpSampling2D((2, 2))(conv_6)
 conv_7 = Conv2D(80, (3, 3), activation='relu', padding='same',kernel_initializer='normal')(upsample_7)
 
-concat_8 = concatenate([upsample_7,conv_2])
+#concat_8 = concatenate([upsample_7,conv_2])
 upsample_8 = UpSampling2D((2, 2))(conv_7)
 conv_8 = Conv2D(80,  (3, 3), activation='relu',padding='same',kernel_initializer='normal')(upsample_8)
 
-decoded = Conv2D(1, (3, 3), padding='same')(conv_8)
-decoded = PReLU()(decoded)
+decoded = Conv2D(1, (3, 3), activation='tanh', padding='same')(conv_8)
+#decoded = PReLU()(decoded)
 
 EarlyStopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=6, verbose=0, mode='auto')
 
@@ -88,9 +90,9 @@ ae1.compile(optimizer='adam', loss=ae_loss)
 
 ae1.fit(train_Img, train_Img,
         shuffle=True,
-        epochs=2,
+        epochs=100,
         batch_size=batch_size,
-        validation_dsplit=0.2, 
+        validation_split=0.2, 
         callbacks=[EarlyStopping])
 
 def getFun(model):
@@ -101,15 +103,15 @@ def getFun(model):
 
 functor = getFun(ae1)
 attr1 = np.zeros((train_Img.shape[0], latent_dim))
-for i in range(new_Img.shape[0]/100):
+for i in range(int(train_Img.shape[0]/100)):
     layer_outs = functor([train_Img[i*100:(i+1)*100], 1.])
-    attr1[i*100:(i+1)*100]=layer_outs[14]
+    attr1[i*100:(i+1)*100]=layer_outs[15]
     
-print(attr1[:10])
+#print(attr1[:10])
 
 
 net_3_input= Input(shape=(30,))
-h_1 = Dense(39, activation='tanh')(net_3_input)
+h_1 = Dense(30, activation='tanh')(net_3_input)
 z_mean = Dense(2,activation='tanh')(h_1)
 z_log_var = Dense(2)(h_1)
 
@@ -141,9 +143,10 @@ vae.fit(attr1, attr1,
         validation_split=0.2,callbacks=[EarlyStopping])
 
 functor = getFun(vae)
-attr2 = np.zeros((new_Img.shape[0], 2))
-for i in range(new_Img.shape[0]/100):
+attr2 = np.zeros((train_Img.shape[0], 2))
+for i in range(int(train_Img.shape[0]/100)):
     layer_outs = functor([attr1[i*100:(i+1)*100], 1.])
-    attr1[i*100:(i+1)*100]=layer_outs[2]
+    attr2[i*100:(i+1)*100]=layer_outs[2]
     
-print(attr2[:10])
+print(attr2[:50])
+np.save('r1.npy',attr2)
