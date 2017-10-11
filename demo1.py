@@ -149,4 +149,8 @@ for i in range(int(train_Img.shape[0]/100)):
     attr2[i*100:(i+1)*100]=layer_outs[2]
     
 print(attr2[:50])
+
 np.save('r1.npy',attr2)
+np.save('labels.npy', labels)
+
+
