@@ -21,7 +21,7 @@ def getData():
 	
 	Img = []
 	Class = []
-	for i in range(10000):
+	for i in range(20000,40000):
 		path_now = path[0]
 		a = np.load('../SDSS_10W/'+str(path_now))
 		for j in range(a.shape[0]):
@@ -34,6 +34,7 @@ def getData():
 	Class[Class=='STAR'] = 0
 	Class[Class=='GALAXY'] = 1
 	Class[Class=='QSO'] = 2
+	
 	return Img, Class
 
 def preprocess(data):
@@ -54,7 +55,7 @@ def preprocess(data):
 	
 #Image, label = getData()
 #train_img = preprocess(Image)
-#print(label[100:210])
+#print(len(label[label=='0']), len(label[label=='1']), len(label[label=='2']))
 #print(train_img.max(), train_img.min())
 #np.save('class.npy', label)
 

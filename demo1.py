@@ -50,7 +50,7 @@ conv_3 = BatchNormalization()(conv_3)
 maxpool_3 = MaxPooling2D((2, 2),  padding='same')(conv_3)
 
 f = Flatten()(maxpool_3)
-dpout_1 = Dropout(0.3)(f)
+dpout_1 = Dropout(0.5)(f)
 encoded = Dense(latent_dim)(dpout_1)
 #maxpool_4 = MaxPooling2D((2, 2),  padding='same')(conv_4)
 
@@ -107,8 +107,8 @@ for i in range(int(train_Img.shape[0]/100)):
     layer_outs = functor([train_Img[i*100:(i+1)*100], 1.])
     attr1[i*100:(i+1)*100]=layer_outs[15]
     
-#print(attr1[:10])
-
+print(attr1.max(), attr1.min())
+attr1 = attr1/attr1.min()
 
 net_3_input= Input(shape=(30,))
 h_1 = Dense(30, activation='tanh')(net_3_input)
@@ -150,7 +150,7 @@ for i in range(int(train_Img.shape[0]/100)):
     
 print(attr2[:50])
 
-np.save('r1.npy',attr2)
-np.save('labels.npy', labels)
+np.save('r2.npy',attr2)
+np.save('labels2.npy', labels)
 
 
