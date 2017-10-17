@@ -21,7 +21,7 @@ def getData():
 	
 	Img = []
 	Class = []
-	for i in range(20000,40000):
+	for i in range(70000,90000):
 		path_now = path[0]
 		a = np.load('../SDSS_10W/'+str(path_now))
 		for j in range(a.shape[0]):

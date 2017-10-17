@@ -50,7 +50,7 @@ conv_3 = BatchNormalization()(conv_3)
 maxpool_3 = MaxPooling2D((2, 2),  padding='same')(conv_3)
 
 f = Flatten()(maxpool_3)
-dpout_1 = Dropout(0.5)(f)
+dpout_1 = Dropout(0.3)(f)
 encoded = Dense(latent_dim)(dpout_1)
 #maxpool_4 = MaxPooling2D((2, 2),  padding='same')(conv_4)
 
@@ -82,7 +82,7 @@ def ae_loss(x, decoded):
 def vae_loss(x, decoded):  
     xent_loss = K.sum(K.sum(objectives.binary_crossentropy(x ,decoded),axis=-1),axis=-1)
     kl_loss = - 0.5 * K.sum(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var), axis=-1) 
-    return xent_loss + 10*kl_loss  
+    return xent_loss + 5*kl_loss  
 
 
 ae1 = Model(inputs=input_img1, outputs=decoded)
@@ -150,7 +150,7 @@ for i in range(int(train_Img.shape[0]/100)):
     
 print(attr2[:50])
 
-np.save('r2.npy',attr2)
-np.save('labels2.npy', labels)
+np.save('r7.npy',attr2)
+np.save('labels7.npy', labels)
 
 
